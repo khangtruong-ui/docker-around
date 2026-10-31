@@ -9,10 +9,29 @@ import os
 import sys
 import json
 import time
+import mimetypes
 import subprocess
 import urllib.parse
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import threading
+
+MATHJAX_DIR = "/usr/share/javascript/mathjax"
+MIME_OVERRIDES = {
+    ".js": "application/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".html": "text/html; charset=utf-8",
+    ".woff": "font/woff",
+    ".woff2": "font/woff2",
+    ".otf": "font/otf",
+    ".ttf": "font/ttf",
+    ".eot": "application/vnd.ms-fontobject",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+}
 
 PORT = int(os.environ.get("PDF_SERVER_PORT", 5000))
 WORKSPACE_DIR = os.environ.get("WORKSPACE_DIR", "/home/dev/latex-workspace")
@@ -416,16 +435,32 @@ class ThreadedPDFHandler(BaseHTTPRequestHandler):
                 self.send_error(403, "Access denied")
                 return
 
-            # If HTML file not yet generated, attempt to generate it on the fly
-            if not os.path.isfile(full_path):
-                tex_src = os.path.splitext(full_path)[0] + ".tex"
-                if os.path.isfile(tex_src) and os.path.exists("/usr/local/bin/latex-to-html"):
-                    subprocess.run(["/usr/local/bin/latex-to-html", tex_src, full_path], cwd=WORKSPACE_DIR, timeout=30)
+            tex_src = os.path.splitext(full_path)[0] + ".tex"
+            needs_build = not os.path.isfile(full_path)
+            if not needs_build and os.path.isfile(tex_src):
+                try:
+                    if os.path.getmtime(tex_src) > os.path.getmtime(full_path):
+                        needs_build = True
+                    else:
+                        with open(full_path, "rb") as f:
+                            head_bytes = f.read(16384)
+                        if b'/usr/share/javascript/mathjax/MathJax.js"' in head_bytes or b"polyfill.io" in head_bytes:
+                            needs_build = True
+                except OSError:
+                    pass
+
+            if needs_build and os.path.isfile(tex_src) and os.path.exists("/usr/local/bin/latex-to-html"):
+                subprocess.run(["/usr/local/bin/latex-to-html", tex_src, full_path], cwd=WORKSPACE_DIR, timeout=30)
 
             if os.path.isfile(full_path):
                 try:
                     with open(full_path, "rb") as f:
                         content = f.read()
+                    if b'/usr/share/javascript/mathjax/MathJax.js"' in content:
+                        content = content.replace(
+                            b'/usr/share/javascript/mathjax/MathJax.js"',
+                            b'mathjax/MathJax.js?config=TeX-AMS-MML_HTMLorMML"'
+                        )
                     self.send_response(200)
                     self.send_header("Content-Type", "text/html; charset=utf-8")
                     self.send_header("Content-Length", str(len(content)))
@@ -448,6 +483,11 @@ class ThreadedPDFHandler(BaseHTTPRequestHandler):
                 self.send_error(403, "Access denied")
                 return
 
+            if not os.path.isfile(full_path):
+                tex_src = os.path.splitext(full_path)[0] + ".tex"
+                if os.path.isfile(tex_src) and os.path.exists("/usr/local/bin/latex-compile"):
+                    subprocess.run(["/usr/local/bin/latex-compile", "-c", tex_src], cwd=WORKSPACE_DIR, timeout=60)
+
             if os.path.isfile(full_path):
                 try:
                     with open(full_path, "rb") as f:
@@ -468,6 +508,30 @@ class ThreadedPDFHandler(BaseHTTPRequestHandler):
                     self.send_error(500, f"Error reading file: {e}")
             else:
                 self.send_error(404, "PDF file not found. Click Recompile or run 'latex-compile main.tex'.")
+            return
+
+        elif "/mathjax/" in path:
+            mj_subpath = path.split("/mathjax/", 1)[1]
+            clean_sub = os.path.normpath(mj_subpath).lstrip("/")
+            full_path = os.path.abspath(os.path.join(MATHJAX_DIR, clean_sub))
+            if not full_path.startswith(os.path.abspath(MATHJAX_DIR)) or not os.path.isfile(full_path):
+                self.send_error(404, "MathJax asset not found")
+                return
+            try:
+                with open(full_path, "rb") as f:
+                    content = f.read()
+                ext = os.path.splitext(full_path)[1].lower()
+                ctype = MIME_OVERRIDES.get(ext) or mimetypes.guess_type(full_path)[0] or "application/octet-stream"
+                self.send_response(200)
+                self.send_header("Content-Type", ctype)
+                self.send_header("Content-Length", str(len(content)))
+                self.send_header("Cache-Control", "public, max-age=86400")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                if not head_only:
+                    self.wfile.write(content)
+            except Exception as e:
+                self.send_error(500, f"Error reading MathJax asset: {e}")
             return
 
         elif path.endswith("/events") or path == "/events":
@@ -509,6 +573,25 @@ class ThreadedPDFHandler(BaseHTTPRequestHandler):
             return
 
         else:
+            clean_rel = os.path.normpath(path).lstrip("/")
+            full_path = os.path.abspath(os.path.join(WORKSPACE_DIR, clean_rel))
+            if full_path.startswith(os.path.abspath(WORKSPACE_DIR)) and os.path.isfile(full_path):
+                try:
+                    with open(full_path, "rb") as f:
+                        content = f.read()
+                    ext = os.path.splitext(full_path)[1].lower()
+                    ctype = MIME_OVERRIDES.get(ext) or mimetypes.guess_type(full_path)[0] or "application/octet-stream"
+                    self.send_response(200)
+                    self.send_header("Content-Type", ctype)
+                    self.send_header("Content-Length", str(len(content)))
+                    self.send_header("Cache-Control", "no-cache")
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    if not head_only:
+                        self.wfile.write(content)
+                    return
+                except Exception:
+                    pass
             self.send_error(404, "Endpoint not found")
 
 def run():

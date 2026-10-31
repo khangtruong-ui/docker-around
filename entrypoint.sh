@@ -96,6 +96,12 @@ EOF
         if [ ! -f /home/dev/latex-workspace/main.tex ] && [ -x /usr/local/bin/latex-template ]; then
             /usr/local/bin/latex-template paper /home/dev/latex-workspace 2>/dev/null || true
         fi
+        if [ -f /home/dev/latex-workspace/main.tex ] && [ -x /usr/local/bin/latex-to-html ]; then
+            if [ ! -f /home/dev/latex-workspace/main.html ] || grep -q "polyfill\.io" /home/dev/latex-workspace/main.html 2>/dev/null; then
+                /usr/local/bin/latex-to-html /home/dev/latex-workspace/main.tex /home/dev/latex-workspace/main.html >/dev/null 2>&1 || true
+                chown dev:dev /home/dev/latex-workspace/main.html 2>/dev/null || true
+            fi
+        fi
 
         # Fast non-recursive chown for new files
         chown dev:dev /home/dev/.config/code-server/config.yaml /var/log/code-server.log 2>/dev/null || true

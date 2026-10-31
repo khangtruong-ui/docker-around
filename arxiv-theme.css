@@ -124,9 +124,93 @@ hr {
   background: var(--border);
   margin: 40px 0;
 }
-.MathJax_Display, .katex-display {
+.MathJax_Display, .katex-display, .MJXc-display, mjx-container[display="true"] {
   overflow-x: auto;
   overflow-y: hidden;
   padding: 8px 0;
+  color: var(--text-primary);
+}
+.MathJax, .MJXc-display, mjx-container {
+  color: var(--text-primary);
+}
+.MathJax a, .MathJax_ref {
+  color: var(--accent) !important;
+  text-decoration: none;
 }
 </style>
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    messageStyle: "none",
+    tex2jax: {
+      inlineMath: [["$", "$"], ["\\(", "\\)"]],
+      displayMath: [["$$", "$$"], ["\\[", "\\]"]],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    TeX: {
+      equationNumbers: { autoNumber: "AMS" },
+      extensions: ["AMSmath.js", "AMSsymbols.js", "boldsymbol.js", "newcommand.js", "noErrors.js", "noUndefined.js"],
+      Macros: {
+        bm: ["\\boldsymbol{#1}", 1]
+      }
+    },
+    "HTML-CSS": {
+      availableFonts: ["TeX"],
+      preferredFont: "TeX",
+      webFont: "TeX",
+      linebreaks: { automatic: true }
+    },
+    SVG: {
+      linebreaks: { automatic: true }
+    }
+  });
+  MathJax.Hub.Register.StartupHook("TeX Jax Ready", function () {
+    MathJax.InputJax.TeX.prefilterHooks.Add(function (data) {
+      if (data.script && data.script.type && data.script.type.indexOf("mode=display") !== -1) {
+        if (data.math.indexOf("\\label") !== -1) {
+          if (data.math.indexOf("\\begin{aligned}") !== -1) {
+            data.math = data.math.replace(/\\begin\{aligned\}/g, "\\begin{align}").replace(/\\end\{aligned\}/g, "\\end{align}");
+          } else if (data.math.indexOf("\\begin{gathered}") !== -1) {
+            data.math = data.math.replace(/\\begin\{gathered\}/g, "\\begin{gather}").replace(/\\end\{gathered\}/g, "\\end{gather}");
+          } else if (!/\\begin\{(equation|align|gather|multline|flalign)/.test(data.math)) {
+            data.math = "\\begin{equation}" + data.math + "\\end{equation}";
+          }
+        }
+      }
+    });
+  });
+</script>
+<script>
+  (function() {
+    function fixEquationRefs() {
+      var changed = false;
+      document.querySelectorAll('a[data-reference-type="eqref"], a[data-reference-type="ref"]').forEach(function(el) {
+        var ref = el.getAttribute("data-reference");
+        var type = el.getAttribute("data-reference-type");
+        if (ref && (type === "eqref" || !document.getElementById(ref))) {
+          var span = document.createElement("span");
+          span.className = "math inline";
+          span.textContent = type === "eqref" ? "\\(\\eqref{" + ref + "}\\)" : "\\(\\ref{" + ref + "}\\)";
+          el.replaceWith(span);
+          changed = true;
+        }
+      });
+      if (changed && window.MathJax && MathJax.Hub) {
+        MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
+      }
+    }
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", fixEquationRefs);
+    } else {
+      fixEquationRefs();
+    }
+    window.addEventListener("load", function() {
+      if (!window.MathJax) {
+        var s = document.createElement("script");
+        s.src = "https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+        s.async = true;
+        document.head.appendChild(s);
+      }
+    });
+  })();
+</script>
