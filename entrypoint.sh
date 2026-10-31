@@ -20,9 +20,9 @@ if ! grep -q "8.8.8.8" /etc/resolv.conf 2>/dev/null; then
     echo "nameserver 1.1.1.1" >> /etc/resolv.conf 2>/dev/null || true
 fi
 
-# Start or verify Docker daemon
+# Start or verify Docker daemon in background (non-blocking)
 if [ "$(id -u)" -eq 0 ] && [ -x /etc/init.d/docker ]; then
-    /etc/init.d/docker start >/dev/null 2>&1 || true
+    /etc/init.d/docker start >/dev/null 2>&1 &
 fi
 
 # Start Web Terminal (ttyd on port 7681) in background if available
@@ -39,20 +39,70 @@ if [ -x /opt/venv/bin/jupyter ] && ! pgrep -f "jupyter" >/dev/null 2>&1; then
         >/var/log/jupyter.log 2>&1 &
 fi
 
-# Start code-server (Web VS Code IDE on port 8443) in background if available
-if command -v code-server >/dev/null 2>&1 && ! pgrep -f "code-server" >/dev/null 2>&1; then
+# Start code-server (Web LaTeX / VS Code IDE on port 8443) in background if available
+if command -v code-server >/dev/null 2>&1 && ! pgrep -f "/usr/lib/code-server" >/dev/null 2>&1; then
     CS_AUTH="none"
-    if [ -n "$CODE_SERVER_PASSWORD" ]; then
+    CODE_PWD="${CODE_SERVER_PASSWORD:-${PASSWORD:-dev}}"
+    if [ "${CODE_SERVER_AUTH:-}" = "none" ] || [ "${PASSWORD:-unset}" = "" ]; then
+        CS_AUTH="none"
+    elif [ -n "$CODE_PWD" ]; then
         CS_AUTH="password"
-        export PASSWORD="$CODE_SERVER_PASSWORD"
     fi
+
+    # Ensure log file exists and is accessible
+    touch /var/log/code-server.log
+    chmod 666 /var/log/code-server.log
+
     if id dev >/dev/null 2>&1; then
-        mkdir -p /home/dev/.config/code-server
-        chown -R dev:dev /home/dev/.config /home/dev/.local 2>/dev/null || true
-        su - dev -c "PASSWORD=\"$PASSWORD\" nohup code-server --bind-addr 0.0.0.0:8443 --auth $CS_AUTH /home/dev >/var/log/code-server.log 2>&1 &"
+        mkdir -p /home/dev/.config/code-server \
+                 /home/dev/.local/share/code-server/User \
+                 /home/dev/.local/share/code-server/extensions \
+                 /home/dev/latex-workspace/.vscode
+
+        # Write config.yaml
+        cat <<EOF > /home/dev/.config/code-server/config.yaml
+bind-addr: 0.0.0.0:8443
+auth: ${CS_AUTH}
+password: ${CODE_PWD}
+cert: false
+EOF
+
+        # Restore settings/extensions if a volume was mounted over /home/dev
+        if [ ! -f /home/dev/.local/share/code-server/User/settings.json ] && [ -f /etc/skel/.local/share/code-server/User/settings.json ]; then
+            cp /etc/skel/.local/share/code-server/User/settings.json /home/dev/.local/share/code-server/User/settings.json
+        fi
+        if [ -f /etc/skel/.local/share/code-server/User/settings.json ] && [ ! -f /home/dev/latex-workspace/.vscode/settings.json ]; then
+            cp /etc/skel/.local/share/code-server/User/settings.json /home/dev/latex-workspace/.vscode/settings.json
+        fi
+        if [ ! -d /home/dev/.local/share/code-server/extensions/james-yu.latex-workshop* ] && [ -d /root/.local/share/code-server/extensions/james-yu.latex-workshop* ]; then
+            cp -r /root/.local/share/code-server/extensions/james-yu.latex-workshop* /home/dev/.local/share/code-server/extensions/ 2>/dev/null || true
+        fi
+        if [ ! -d /home/dev/.agents/skills/latex ] && [ -d /usr/local/share/agy-skills/latex ]; then
+            cp -r /usr/local/share/agy-skills/latex /home/dev/.agents/skills/ 2>/dev/null || true
+            cp -r /usr/local/share/agy-skills/latex /home/dev/.gemini/config/skills/ 2>/dev/null || true
+        fi
+        if [ ! -f /home/dev/latex-workspace/main.tex ] && [ -x /usr/local/bin/latex-template ]; then
+            /usr/local/bin/latex-template paper /home/dev/latex-workspace 2>/dev/null || true
+        fi
+
+        # Fast non-recursive chown for new files
+        chown dev:dev /home/dev/.config/code-server/config.yaml /var/log/code-server.log 2>/dev/null || true
+        chown dev:dev /home/dev/.config/code-server /home/dev/latex-workspace 2>/dev/null || true
+
+        # Launch code-server as dev user opening the latex workspace
+        nohup su - dev -c "code-server --bind-addr 0.0.0.0:8443 /home/dev/latex-workspace" >/var/log/code-server.log 2>&1 &
     else
-        mkdir -p /root/.config/code-server
-        PASSWORD="$PASSWORD" nohup code-server --bind-addr 0.0.0.0:8443 --auth $CS_AUTH /root >/var/log/code-server.log 2>&1 &
+        mkdir -p /root/.config/code-server /root/latex-workspace/.vscode
+        cat <<EOF > /root/.config/code-server/config.yaml
+bind-addr: 0.0.0.0:8443
+auth: ${CS_AUTH}
+password: ${CODE_PWD}
+cert: false
+EOF
+        if [ -f /tmp/settings.json ] && [ ! -f /root/latex-workspace/.vscode/settings.json ]; then
+            cp /tmp/settings.json /root/latex-workspace/.vscode/settings.json 2>/dev/null || true
+        fi
+        nohup code-server --bind-addr 0.0.0.0:8443 /root/latex-workspace >/var/log/code-server.log 2>&1 &
     fi
 fi
 

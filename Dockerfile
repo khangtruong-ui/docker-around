@@ -60,8 +60,11 @@ RUN mkdir -p /root/.local/share/code-server/User \
 
 # 5. Install AGY LaTeX Skill & system helper scripts
 COPY skills/latex /usr/local/share/agy-skills/latex
+COPY web-ide.sh /usr/local/bin/web-ide
 
 RUN chmod +x /usr/local/share/agy-skills/latex/scripts/*.sh \
+    && chmod +x /usr/local/bin/web-ide \
+    && ln -sf /usr/local/bin/web-ide /usr/local/bin/latex-editor \
     && ln -sf /usr/local/share/agy-skills/latex/scripts/compile.sh /usr/local/bin/latex-compile \
     && ln -sf /usr/local/share/agy-skills/latex/scripts/clean.sh /usr/local/bin/latex-clean \
     && ln -sf /usr/local/share/agy-skills/latex/scripts/lint.sh /usr/local/bin/latex-lint \
@@ -76,6 +79,8 @@ RUN chmod +x /usr/local/share/agy-skills/latex/scripts/*.sh \
     && cp -r /usr/local/share/agy-skills/latex /etc/skel/.gemini/config/skills/ \
     && cp -r /usr/local/share/agy-skills/latex /root/.agents/skills/ \
     && cp -r /usr/local/share/agy-skills/latex /home/dev/.agents/skills/ \
+    && touch /var/log/code-server.log \
+    && chmod 666 /var/log/code-server.log \
     && chown -R dev:dev /home/dev/.gemini /home/dev/.agents 2>/dev/null || true
 
 # 6. Configure Desktop Shortcuts for TeXstudio and Evince in Chrome Remote Desktop
@@ -88,9 +93,11 @@ RUN mkdir -p /home/dev/Desktop /root/Desktop /etc/skel/Desktop \
     && chown -R dev:dev /home/dev/Desktop 2>/dev/null || true
 
 # 7. Create starter LaTeX workspace
-RUN mkdir -p /home/dev/latex-workspace /root/latex-workspace \
+RUN mkdir -p /home/dev/latex-workspace/.vscode /root/latex-workspace/.vscode \
     && /usr/local/bin/latex-template paper /home/dev/latex-workspace \
     && cp -r /home/dev/latex-workspace/* /root/latex-workspace/ \
+    && cp /tmp/settings.json /home/dev/latex-workspace/.vscode/settings.json \
+    && cp /tmp/settings.json /root/latex-workspace/.vscode/settings.json \
     && chown -R dev:dev /home/dev/latex-workspace 2>/dev/null || true
 
 # 8. Copy comprehensive documentation
