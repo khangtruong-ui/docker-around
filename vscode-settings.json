@@ -1,4 +1,16 @@
 {
+  "workbench.colorTheme": "Default Dark Modern",
+  "workbench.editorAssociations": {
+    "*.pdf": "magicPdf.preview"
+  },
+  "magicPdf.theme": "dark",
+  "magicPdf.default.scale": "page-width",
+  "magicPdf.default.scrollMode": "vertical",
+  "magicPdf.toolbarDensity": "compact",
+  "pdf-preview.default.scale": "page-width",
+  "latex-workshop.view.pdf.viewer": "tab",
+  "latex-workshop.latex.autoBuild.run": "onFileChange",
+  "latex-workshop.latex.clean.subfolder.enabled": true,
   "latex-workshop.latex.tools": [
     {
       "name": "latexmk",
@@ -60,9 +72,6 @@
       ]
     }
   ],
-  "latex-workshop.view.pdf.viewer": "tab",
-  "latex-workshop.latex.autoBuild.run": "onFileChange",
-  "latex-workshop.latex.clean.subfolder.enabled": true,
   "telemetry.telemetryLevel": "off",
   "terminal.integrated.defaultProfile.linux": "bash"
 }

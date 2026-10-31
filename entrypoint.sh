@@ -39,6 +39,18 @@ if [ -x /opt/venv/bin/jupyter ] && ! pgrep -f "jupyter" >/dev/null 2>&1; then
         >/var/log/jupyter.log 2>&1 &
 fi
 
+# Start Standalone LaTeX Dark Mode PDF Viewer & Live Auto-Reload Server (port 5000)
+if [ -f /usr/local/bin/pdf-server.py ] && ! pgrep -f "pdf-server.py" >/dev/null 2>&1; then
+    touch /var/log/pdf-server.log
+    chmod 666 /var/log/pdf-server.log
+    if id dev >/dev/null 2>&1; then
+        chown dev:dev /var/log/pdf-server.log 2>/dev/null || true
+        su - dev -c "nohup python3 /usr/local/bin/pdf-server.py >/var/log/pdf-server.log 2>&1 &"
+    else
+        nohup python3 /usr/local/bin/pdf-server.py >/var/log/pdf-server.log 2>&1 &
+    fi
+fi
+
 # Start code-server (Web LaTeX / VS Code IDE on port 8443) in background if available
 if command -v code-server >/dev/null 2>&1 && ! pgrep -f "/usr/lib/code-server" >/dev/null 2>&1; then
     CS_AUTH="none"
@@ -74,8 +86,8 @@ EOF
         if [ -f /etc/skel/.local/share/code-server/User/settings.json ] && [ ! -f /home/dev/latex-workspace/.vscode/settings.json ]; then
             cp /etc/skel/.local/share/code-server/User/settings.json /home/dev/latex-workspace/.vscode/settings.json
         fi
-        if [ ! -d /home/dev/.local/share/code-server/extensions/james-yu.latex-workshop* ] && [ -d /root/.local/share/code-server/extensions/james-yu.latex-workshop* ]; then
-            cp -r /root/.local/share/code-server/extensions/james-yu.latex-workshop* /home/dev/.local/share/code-server/extensions/ 2>/dev/null || true
+        if [ -d /root/.local/share/code-server/extensions ]; then
+            cp -rn /root/.local/share/code-server/extensions/* /home/dev/.local/share/code-server/extensions/ 2>/dev/null || true
         fi
         if [ ! -d /home/dev/.agents/skills/latex ] && [ -d /usr/local/share/agy-skills/latex ]; then
             cp -r /usr/local/share/agy-skills/latex /home/dev/.agents/skills/ 2>/dev/null || true

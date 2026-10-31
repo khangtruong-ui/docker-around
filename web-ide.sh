@@ -1,11 +1,36 @@
 #!/bin/bash
 # web-ide / latex-editor - Start or view code-server Web LaTeX IDE status
 
-PORT="${1:-8443}"
-WORKSPACE="${2:-/home/dev/latex-workspace}"
+PORT="8443"
+WORKSPACE="${WORKSPACE_DIR:-/home/dev/latex-workspace}"
 if [ ! -d "$WORKSPACE" ]; then
     WORKSPACE="${HOME:-/home/dev}"
 fi
+
+ACTION="${1:-status}"
+if [[ "$ACTION" =~ ^[0-9]+$ ]]; then
+    PORT="$ACTION"
+    ACTION="start"
+fi
+
+case "$ACTION" in
+    stop)
+        pkill -f "/usr/lib/code-server" 2>/dev/null && echo "Stopped code-server." || echo "code-server is not running."
+        exit 0
+        ;;
+    restart)
+        pkill -f "/usr/lib/code-server" 2>/dev/null
+        sleep 1
+        ;;
+    logs)
+        tail -n 50 -f /var/log/code-server.log
+        exit 0
+        ;;
+    status)
+        ;;
+    start|*)
+        ;;
+esac
 
 if ! pgrep -f "/usr/lib/code-server" >/dev/null 2>&1; then
     echo "Starting code-server Web LaTeX IDE on port ${PORT}..."
