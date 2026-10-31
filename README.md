@@ -53,11 +53,12 @@ The web editor opens straight into `/home/dev/latex-workspace`, pre-loaded with 
    - `Ctrl + click` anywhere in the PDF preview tab to jump directly to the corresponding line in `main.tex`.
    - Click "SyncTeX to cursor" in the editor tab to jump to the matching page in the PDF preview.
 5. **Integrated Terminal & AGY Pair Programming**:
-   - Press `Ctrl + \`` inside the browser IDE to open the bottom terminal.
-   - Run AI assistance commands right alongside your `.tex` document:
+   - Press <kbd>Ctrl</kbd>+<kbd>`</kbd> (or go to **Menu ➔ Terminal ➔ New Terminal**) inside the browser IDE to open the bottom terminal.
+   - Run AI assistance commands right alongside your `.tex` document using `agy` with `-i` (interactive) or `-p` (print mode):
      ```bash
-     agy "Fix any equation or reference issues in main.tex and recompile"
+     agy -i "Fix any equation or reference issues in main.tex and recompile"
      ```
+     *(Or simply run `agy` to enter the interactive chat interface).*
    - Run helper commands:
      ```bash
      latex-compile main.tex   # Compiles with smart engine detection
@@ -116,12 +117,20 @@ The image includes a complete TeX Live setup:
 
 The `latex` skill is pre-installed globally for `agy` at `/home/dev/.agents/skills/latex` and `/home/dev/.gemini/config/skills/latex`.
 
-### Example Prompts for `agy`:
+### Example Usage with `agy`:
+
+You can start an interactive AI session with a prompt using `agy -i "..."`, run in batch print mode with `agy -p "..."`, or just launch `agy`:
+
 ```bash
-agy "Scaffold an IEEE conference paper about agentic AI and compile it to PDF"
-agy "Inspect main.log, find the LaTeX compilation error, and fix it"
-agy "Convert this plain text table into a professional booktabs LaTeX table"
-agy "Add a Beamer presentation summarizing our benchmark results"
+# Interactive mode with an initial prompt:
+agy -i "Scaffold an IEEE conference paper about agentic AI and compile it to PDF"
+agy -i "Inspect main.log, find the LaTeX compilation error, and fix it"
+
+# Batch / print mode:
+agy -p "Convert this plain text table into a professional booktabs LaTeX table"
+
+# Or launch the full interactive assistant:
+agy
 ```
 
 ---
