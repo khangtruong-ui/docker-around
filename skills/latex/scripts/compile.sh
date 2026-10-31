@@ -135,6 +135,11 @@ if [[ $STATUS -eq 0 ]]; then
         echo "==> Compilation completed in ${DURATION}s."
     fi
 
+    # Automatically generate / update arXiv-style HTML paper
+    if command -v latex-to-html >/dev/null 2>&1; then
+        latex-to-html "$TARGET" "${BASENAME}.html" >/dev/null 2>&1 || true
+    fi
+
     if [[ "$CLEAN_AFTER" == true ]]; then
         echo "==> Cleaning auxiliary files..."
         latexmk -c "$TARGET" >/dev/null 2>&1 || true

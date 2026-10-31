@@ -5,7 +5,7 @@ LABEL description="Developer container with TeX Live, code-server, TeXstudio, AG
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 1. Install LaTeX Compiler Suite, Utilities & GUI Tools
+# 1. Install LaTeX Compiler Suite, Utilities, Pandoc, MathJax & GUI Tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
     texlive-latex-base \
     texlive-latex-recommended \
@@ -20,6 +20,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     biber \
     latexmk \
     chktex \
+    pandoc \
+    libjs-mathjax \
     python3-pygments \
     ghostscript \
     qpdf \
@@ -63,11 +65,12 @@ RUN mkdir -p /root/.local/share/code-server/User \
     && cp -r /root/.local/share/code-server/extensions/* /etc/skel/.local/share/code-server/extensions/ 2>/dev/null || true \
     && chown -R dev:dev /home/dev/.local /home/dev/.config 2>/dev/null || true
 
-# 5. Install AGY LaTeX Skill & system helper scripts
+# 5. Install AGY LaTeX Skill, arXiv HTML theme & system helper scripts
 COPY skills/latex /usr/local/share/agy-skills/latex
 COPY web-ide.sh /usr/local/bin/web-ide
 COPY pdf-server.py /usr/local/bin/pdf-server.py
 COPY latex-preview.sh /usr/local/bin/latex-preview
+COPY arxiv-theme.css /usr/local/share/latex-html/arxiv-theme.css
 
 RUN chmod +x /usr/local/share/agy-skills/latex/scripts/*.sh \
     && chmod +x /usr/local/bin/web-ide /usr/local/bin/pdf-server.py /usr/local/bin/latex-preview \
@@ -75,6 +78,7 @@ RUN chmod +x /usr/local/share/agy-skills/latex/scripts/*.sh \
     && ln -sf /usr/local/bin/latex-preview /usr/local/bin/pdf-view \
     && ln -sf /usr/local/bin/latex-preview /usr/local/bin/pdf-viewer \
     && ln -sf /usr/local/share/agy-skills/latex/scripts/compile.sh /usr/local/bin/latex-compile \
+    && ln -sf /usr/local/share/agy-skills/latex/scripts/to-html.sh /usr/local/bin/latex-to-html \
     && ln -sf /usr/local/share/agy-skills/latex/scripts/clean.sh /usr/local/bin/latex-clean \
     && ln -sf /usr/local/share/agy-skills/latex/scripts/lint.sh /usr/local/bin/latex-lint \
     && ln -sf /usr/local/share/agy-skills/latex/scripts/template.sh /usr/local/bin/latex-template \
@@ -101,9 +105,10 @@ RUN mkdir -p /home/dev/Desktop /root/Desktop /etc/skel/Desktop \
     && chmod +x /home/dev/Desktop/*.desktop /root/Desktop/*.desktop /etc/skel/Desktop/*.desktop 2>/dev/null || true \
     && chown -R dev:dev /home/dev/Desktop 2>/dev/null || true
 
-# 7. Create starter LaTeX workspace
+# 7. Create starter LaTeX workspace & pre-generate arXiv-style HTML paper
 RUN mkdir -p /home/dev/latex-workspace/.vscode /root/latex-workspace/.vscode \
     && /usr/local/bin/latex-template paper /home/dev/latex-workspace \
+    && /usr/local/bin/latex-to-html /home/dev/latex-workspace/main.tex /home/dev/latex-workspace/main.html \
     && cp -r /home/dev/latex-workspace/* /root/latex-workspace/ \
     && cp /tmp/settings.json /home/dev/latex-workspace/.vscode/settings.json \
     && cp /tmp/settings.json /root/latex-workspace/.vscode/settings.json \

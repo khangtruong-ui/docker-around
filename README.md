@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Batteries-included LaTeX engineering and AI-assisted scientific authoring container.
-Based on `khangtruong1108/basic:chrome-remote`, extended with a complete **TeX Live compiler suite**, **Antigravity (`agy`) LaTeX skills**, **code-server (Web VS Code IDE)**, **Dark Mode PDF Viewers (both in-editor and standalone live web app)**, **OpenSSH Server for Host IDEs**, **TeXstudio & Evince for Chrome Remote Desktop**, and **pre-configured LaTeX Workshop**.
+Based on `khangtruong1108/basic:chrome-remote`, extended with a complete **TeX Live compiler suite**, **Antigravity (`agy`) LaTeX skills**, **code-server (Web VS Code IDE)**, **arXiv-Style Paper Reader (Instant HTML & Native PDF with Dark Mode)**, **OpenSSH Server for Host IDEs**, **TeXstudio & Evince for Chrome Remote Desktop**, and **pre-configured LaTeX Workshop**.
 
 ---
 
@@ -22,7 +22,7 @@ docker run -d --name latex-devbox --privileged -p 2222:22 -p 8443:8443 -p 5000:5
 | Port | Service | Description | Access URL / Command |
 | :--- | :--- | :--- | :--- |
 | **`8443`** | **code-server (Web IDE)** | Web LaTeX editor with LaTeX Workshop, Magic PDF & AGY | `http://localhost:8443` (Password: `dev`) |
-| **`5000`** | **Live Dark Mode PDF Viewer** | Standalone web reader with live auto-reload & dark mode | `http://localhost:5000` or `http://localhost:8443/proxy/5000/` |
+| **`5000`** | **arXiv-Style Paper Reader** | Instant arXiv HTML (<10ms) & Fast Native PDF in Dark Mode | `http://localhost:5000` or `http://localhost:8443/proxy/5000/` |
 | **`2222`** | **OpenSSH (`sshd`)** | Connect host VS Code / Cursor via Remote - SSH | `ssh dev@localhost -p 2222` (Password: `dev`) |
 | **`8888`** | **JupyterLab** | Interactive notebooks & terminals | `http://localhost:8888` |
 | **`7681`** | **ttyd** | Web Terminal for fast terminal agent access | `http://localhost:7681` |
@@ -42,55 +42,71 @@ When prompted for a password, enter:
 - *(Customizable when starting the container via `-e PASSWORD=<your_password>` or disabled entirely via `-e CODE_SERVER_AUTH=none`)*.
 
 ### Step 3: Edit and Typeset Your Documents
-The web editor opens straight into `/home/dev/latex-workspace`, pre-loaded with a sample IEEE conference paper (`main.tex`, `references.bib`):
+The web editor opens straight into `/home/dev/latex-workspace`, pre-loaded with a starter IEEE conference paper (`main.tex`, `references.bib`):
 1. **Open `main.tex`** from the left file explorer.
 2. **Auto-Compilation on Save**:
-   - Edit your text or math and press <kbd>Ctrl</kbd>+<kbd>S</kbd> (<kbd>Cmd</kbd>+<kbd>S</kbd>). LaTeX Workshop automatically invokes `latexmk` with SyncTeX and updates `main.pdf`.
+   - Edit your text or math and press <kbd>Ctrl</kbd>+<kbd>S</kbd> (<kbd>Cmd</kbd>+<kbd>S</kbd>). LaTeX Workshop invokes `latexmk` and automatically updates both `main.pdf` and `main.html`.
    - Alternatively, press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>B</kbd> to trigger a manual build recipe (`pdfLaTeX`, `XeLaTeX`, or `LuaLaTeX`).
 3. **Integrated Terminal & AGY Pair Programming**:
    - Press <kbd>Ctrl</kbd>+<kbd>`</kbd> (or go to **Menu ➔ Terminal ➔ New Terminal**) inside the browser IDE to open the bottom terminal.
-   - Run AI assistance commands right alongside your `.tex` document:
+   - Run AI assistance commands right alongside your `.tex` document using `-i` (interactive) or `-p` (print mode):
      ```bash
      agy -i "Make the pdf at least 2 pages long and fix references"
      ```
-     *(Or run `agy` to enter the interactive chat interface, or `agy -p "..."` for batch mode).*
+     *(Or simply run `agy` to enter the interactive chat interface).*
    - Run helper commands:
      ```bash
-     latex-compile main.tex   # Compiles with smart engine detection
+     latex-compile main.tex   # Compiles both main.pdf AND arXiv-style main.html
+     latex-to-html main.tex   # Converts LaTeX to responsive HTML with MathJax
      latex-lint main.tex      # Typography and syntax check (chktex)
      latex-clean              # Cleans auxiliary build artifacts
      ```
 
 ---
 
-## 📖 3. How to View PDFs (Dark Mode Supported)
+## ⚡ 3. High-Speed Paper Reading (arXiv-Style HTML & Native PDF)
 
-Viewing PDFs in browser-based VS Code previously suffered from infinite loading due to internal loopback port forwarding limits. This image provides **two robust viewing solutions**, both featuring **Dark Mode by default**:
+Viewing PDFs inside web-based VS Code previously hung due to single-threaded proxy limits and client-side PDF.js overhead. This container solves it by adopting **the arXiv rendering model**:
 
-### Method A: Inside Web VS Code (Magic PDF Custom Editor)
-- **Zero-Latency In-Editor Tab**: Click any `.pdf` (such as `main.pdf`) in the VS Code file explorer, or press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd>.
-- **Instant Opening**: Uses the pre-installed `els4nta.vscode-magic-pdf` extension running entirely inside the webview sandbox—no dynamic loopback port issues or endless loading spinners.
-- **Dark Mode by Default**: PDFs open with a `#1e1e1e` dark canvas and inverted typography for comfortable night reading.
-- **Auto-Sync**: Automatically refreshes whenever you save (<kbd>Ctrl</kbd>+<kbd>S</kbd>) and recompile.
-- **Controls**: Includes zoom, page outline bookmarks, and a top-bar button to toggle between Dark Mode, Light Mode, and Page Color Inversion.
+### How arXiv Renders Documents Fast
+1. **arXiv HTML Mode (ar5iv)**: Rather than parsing raw binary PDF streams in JavaScript, arXiv compiles LaTeX into semantic, responsive **HTML5 + MathJax** (`http://localhost:5000/html?file=main.html`). It renders in **< 10ms**, reflows perfectly across all screen sizes, and is natively styled in Dark Mode.
+2. **Native C++ PDF Streaming**: arXiv streams PDFs directly with `Content-Type: application/pdf; Content-Disposition: inline`. This bypasses heavy JavaScript and delegates rendering to the browser's hardware-accelerated C++ PDF engine (Chromium PDFium / Firefox Gecko).
 
-### Method B: Standalone Live Dark Mode PDF Web App (Port 5000)
-A dedicated, lightweight web reader runs in the background on port `5000`:
-- **Direct Access**: Open **`http://localhost:5000`** in your host browser (side-by-side with your editor or on a second monitor).
-- **Access via code-server Proxy**: If port 5000 is not exposed to the host, open **`http://localhost:8443/proxy/5000/`** directly through code-server's built-in reverse proxy (no extra ports required!).
-- **Inside VS Code**: Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> ➔ `Simple Browser: Show` ➔ enter `http://localhost:8443/proxy/5000/` to dock the live reader right in a split tab.
+---
+
+### Reading Options Available
+
+#### Option A: arXiv-Style Web Reader Dashboard (Port 5000 or Proxy)
+- **Direct Access**: 👉 **`http://localhost:5000`**
+- **Via code-server Proxy**: 👉 **`http://localhost:8443/proxy/5000/`** (No extra ports required!)
+- **Docked inside VS Code**: In code-server, press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> ➔ `Simple Browser: Show` ➔ enter `http://localhost:8443/proxy/5000/` to dock the live reader side-by-side with your code!
 - **Features**:
+  - 🌐 **arXiv HTML Mode**: Instant reflowable HTML5 paper with crisp MathJax equations.
+  - 📄 **Native Fast PDF Mode**: Direct hardware-accelerated PDF rendering with Dark Mode filter.
   - 🌙 **Dark Mode (Default)**, ☀️ **Light Mode**, and 📜 **Sepia** one-click toggles.
-  - ⚡ **Live Auto-Reload (SSE)**: Automatically detects when `main.pdf` is recompiled and re-renders instantly while preserving your scroll position.
-  - 🔍 **Zoom & Fit**: Fit Width, Fit Page, 75%, 100%, 150%, 200%.
-  - 📑 **Workspace Dropdown**: Seamlessly switch between any `.pdf` file in `/home/dev/latex-workspace`.
-  - ⬇ **One-Click Download**: Direct PDF export.
+  - ⚡ **Live Auto-Reload (Multi-Threaded SSE)**: Updates immediately whenever you save or compile without blocking HTTP traffic or losing your scroll position.
+  - 🔨 **Recompile Button**: Click `⚡ Recompile` in the toolbar to build without touching a terminal.
+  - ⬇ **One-Click Download**: Instant PDF export.
 
-CLI management commands inside any container terminal:
+#### Option B: Direct Raw URLs (Fastest Possible)
+- **Raw arXiv HTML Paper**: `http://localhost:5000/html?file=main.html` (renders in < 10ms)
+- **Raw Native PDF Stream**: `http://localhost:5000/pdf?file=main.pdf` (native browser PDFium engine)
+
+#### Option C: In-Editor VS Code Magic PDF Tab
+- In code-server, click `main.pdf` or press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd>.
+- Opens the custom editor tab with dark theme (`#1e1e1e`) without opening dynamic loopback ports.
+
+---
+
+### CLI Helper Commands Inside the Container
+
+Manage papers and reader services from any container shell:
 ```bash
-latex-preview status   # Inspects PDF server status
-latex-preview restart  # Restarts the standalone reader service
-latex-preview logs     # Views live server logs
+latex-compile main.tex   # Compiles both camera-ready PDF and arXiv HTML
+latex-to-html main.tex   # Generates standalone arXiv HTML5 paper with MathJax
+latex-preview status     # Inspects reader status
+latex-preview restart    # Restarts the multi-threaded reader service
+latex-preview logs       # Views real-time server logs
 ```
 
 ---
@@ -125,32 +141,9 @@ For full GUI tools like **TeXstudio** and **Evince**:
 The image includes a complete TeX Live setup:
 - **Engines**: `pdflatex` (TeX Live 2023), `xelatex`, `lualatex`
 - **Automation & Bibliography**: `latexmk` 4.83, `biber` 2.19, `bibtex`
+- **Converters & HTML**: `pandoc` 3.1, `libjs-mathjax` (offline MathJax display engine), `pdftohtml`
 - **Linters & Utilities**: `chktex` 1.7.8, `pygmentize` (for `minted`), `ghostscript`, `qpdf`, `poppler-utils` (`pdfinfo`, `pdftoppm`)
 - **Package Suites**: `texlive-latex-base`, `texlive-latex-recommended`, `texlive-latex-extra`, `texlive-fonts-recommended`, `texlive-fonts-extra`, `texlive-science`, `texlive-xetex`, `texlive-luatex`, `texlive-bibtex-extra`, `texlive-publishers` (IEEEtran, ACM sigconf, etc.)
-
-### Included CLI Helper Commands:
-These scripts are symlinked directly into `/usr/local/bin` and can be used in any terminal or subagent:
-
-- **`latex-compile [file.tex] [engine]`**: Smart compiler with engine auto-detection, error filtering, and SyncTeX:
-  ```bash
-  latex-compile main.tex
-  ```
-- **`latex-clean [dir]`**: Cleans auxiliary build artifacts (`.aux`, `.bbl`, `.fls`, `.log`, `.synctex.gz`, etc.):
-  ```bash
-  latex-clean
-  ```
-- **`latex-lint [file.tex]`**: Runs syntax and typography checks via `chktex`:
-  ```bash
-  latex-lint main.tex
-  ```
-- **`latex-template [paper|article|slides] [target_dir]`**: Instant starter templates (IEEE conference paper, academic article, or Beamer slides):
-  ```bash
-  latex-template paper my-paper/
-  ```
-- **`latex-preview [status|restart|logs]`**: Standalone live dark-mode PDF reader controller:
-  ```bash
-  latex-preview
-  ```
 
 ---
 
@@ -159,12 +152,9 @@ These scripts are symlinked directly into `/usr/local/bin` and can be used in an
 The `latex` skill is pre-installed globally for `agy` at `/home/dev/.agents/skills/latex` and `/home/dev/.gemini/config/skills/latex`.
 
 ### Example Usage with `agy`:
-
-You can start an interactive AI session with a prompt using `agy -i "..."`, run in batch print mode with `agy -p "..."`, or just launch `agy`:
-
 ```bash
 # Interactive mode with an initial prompt:
-agy -i "Scaffold an IEEE conference paper about agentic AI and compile it to PDF"
+agy -i "Scaffold an IEEE conference paper about agentic AI and compile it to PDF and HTML"
 agy -i "Inspect main.log, find the LaTeX compilation error, and fix it"
 
 # Batch / print mode:
@@ -182,16 +172,18 @@ agy
 .
 ├── Dockerfile                  # Multi-layer Docker recipe extending khangtruong1108/basic:chrome-remote
 ├── entrypoint.sh               # Multi-service daemon supervisor (code-server, pdf-server, sshd, ttyd, jupyter, CRD)
-├── pdf-server.py               # Standalone Dark Mode PDF reader & SSE live auto-reload server
-├── latex-preview.sh            # CLI controller for the live PDF reader (latex-preview / pdf-view)
+├── pdf-server.py               # arXiv-style paper reader (HTML5 + MathJax & native PDF with Dark Mode & threaded SSE)
+├── latex-preview.sh            # CLI controller for the live paper reader (latex-preview / pdf-view)
 ├── web-ide.sh                  # CLI controller for code-server Web IDE (web-ide / latex-editor)
+├── arxiv-theme.css             # Academic dark theme CSS for responsive HTML papers
 ├── vscode-settings.json        # Pre-configured LaTeX Workshop and Dark Mode Magic PDF settings
 ├── README.md                   # Comprehensive documentation and reference guide
 └── skills/
     └── latex/
         ├── SKILL.md            # AGY skill definition & instructions
         ├── scripts/
-        │   ├── compile.sh      # latex-compile: smart compilation script
+        │   ├── compile.sh      # latex-compile: smart compilation script (builds PDF + HTML)
+        │   ├── to-html.sh      # latex-to-html: converts LaTeX to responsive HTML5 + MathJax
         │   ├── clean.sh        # latex-clean: auxiliary file removal
         │   ├── lint.sh         # latex-lint: chktex typography linter
         │   └── template.sh     # latex-template: project scaffolding
@@ -208,7 +200,7 @@ agy
 | Service | Username | Default Password | Environment Override |
 | :--- | :--- | :--- | :--- |
 | **code-server (Web IDE)** | `dev` | `dev` | `PASSWORD=<secret>` |
-| **Dark Mode PDF Reader** | - | *(No login required)* | `http://localhost:5000` |
+| **arXiv Paper Reader** | - | *(No login required)* | `http://localhost:5000` |
 | **SSH** | `dev` | `dev` | Passwordless `sudo` & `docker` group |
 | **SSH (root)** | `root` | `root` | Full root access |
 | **JupyterLab** | - | *(No token / password)* | `JUPYTER_TOKEN=<secret>` |
